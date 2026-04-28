@@ -1,0 +1,52 @@
+import { Module } from '@nestjs/common';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
+
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { MailService } from './mail.service';
+import { OTP, OTPSchema } from './schemas/otp.schema';
+
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { User, UserSchema } from '../user/schemas/user.schema';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { StatsModule } from '../stats/stats.module';
+import { Payment, PaymentSchema } from 'src/payment/schemas/payment.schema';
+
+@Module({
+  imports: [
+    PassportModule.register({ defaultStrategy: 'jwt' }), // Required for JWT strategy
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_ACCESS_SECRET'),
+        signOptions: {
+          expiresIn: config.get('JWT_ACCESS_EXPIRES') || '15m',
+        },
+      }),
+    }),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Payment.name, schema: PaymentSchema },
+      { name: OTP.name, schema: OTPSchema },
+    ]),
+ 
+
+    StatsModule,
+  ],
+  controllers: [AuthController],
+  providers: [
+    AuthService,
+    MailService,
+    JwtStrategy, // Strategy must be registered for guards to work
+    JwtAuthGuard, // Optional for DI injection
+  ],
+  exports: [
+    AuthService,
+    PassportModule, // Export to use guards in other modules
+  ],
+})
+export class AuthModule {}
