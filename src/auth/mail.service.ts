@@ -1,19 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import axios from 'axios';
 
 @Injectable()
 export class MailService {
   private transporter;
 
   constructor(private readonly configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: this.configService.get<string>('MAIL_USER'), // Your Gmail
-        pass: this.configService.get<string>('MAIL_PASS'), // Your Gmail App Password
-      },
-    });
+    const mailUser = this.configService.get<string>('MAIL_USER');
+    const mailPass = this.configService.get<string>('MAIL_PASS');
+    if (mailUser && mailPass) {
+      this.transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: mailUser,
+          pass: mailPass,
+        },
+      });
+    }
   }
 
   async sendOTP(email: string, code: string, type: string) {
@@ -37,19 +42,52 @@ export class MailService {
       </div>
     `;
 
-    try {
-      await this.transporter.sendMail({
-        from: '"Alhamdulillah Foundation" <noreply@foundation.com>',
-        to: email,
-        subject: subject,
-        html: message,
-      });
-      return true;
-    } catch (error) {
-      console.error('❌ Mail Error:', error);
-      // In Dev mode, we log it so user can still see it
-      console.log(`[DEV OTP] for ${email}: ${code}`);
-      return false;
+    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
+
+    if (resendApiKey) {
+      try {
+        console.log(`📡 Sending OTP to ${email} using Resend API...`);
+        const response = await axios.post(
+          'https://api.resend.com/emails',
+          {
+            from: 'Alhamdulillah Foundation <onboarding@resend.dev>',
+            to: [email],
+            subject: subject,
+            html: message,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${resendApiKey}`,
+            },
+          }
+        );
+        if (response.status === 200 || response.status === 201) {
+          console.log(`✅ Email sent successfully via Resend API to ${email}`);
+          return true;
+        }
+      } catch (error: any) {
+        console.error('❌ Resend API Error:', error?.response?.data || error?.message || error);
+      }
     }
+
+    if (this.transporter) {
+      try {
+        console.log(`📡 Sending OTP to ${email} using Gmail SMTP...`);
+        await this.transporter.sendMail({
+          from: '"Alhamdulillah Foundation" <noreply@foundation.com>',
+          to: email,
+          subject: subject,
+          html: message,
+        });
+        console.log(`✅ Email sent successfully via Gmail SMTP to ${email}`);
+        return true;
+      } catch (error) {
+        console.error('❌ Gmail SMTP Error:', error);
+      }
+    }
+
+    console.log(`[DEV OTP] for ${email}: ${code}`);
+    return false;
   }
 }
