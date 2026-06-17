@@ -7,7 +7,7 @@ import {
   Res,
   Req,
   UnauthorizedException,
-  Get,
+  Get, Query,
   UseGuards,
   Request as ReqDecorator,
 } from '@nestjs/common';
@@ -45,7 +45,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ) {
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const ip = req.ip || req.headers['x-forwarded-for'];
     const userAgent = req.headers['user-agent'];
 
     const { user, accessToken, refreshToken } =
@@ -76,7 +76,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ) {
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const ip = req.ip || req.headers['x-forwarded-for'];
     const userAgent = req.headers['user-agent'];
 
     const { user, accessToken, refreshToken } =
@@ -141,8 +141,13 @@ async me(
 
   /* ================= OTP ENDPOINTS ================= */
 
+  @Get('send-registration-otp')
+  async sendRegistrationOTP(@Query('email') email: string) {
+    return this.authService.sendRegistrationOTP(email);
+  }
+
   @Post('send-registration-otp')
-  async sendRegistrationOTP(@Body('email') email: string) {
+  async sendRegistrationOTPPost(@Body('email') email: string) {
     return this.authService.sendRegistrationOTP(email);
   }
 
