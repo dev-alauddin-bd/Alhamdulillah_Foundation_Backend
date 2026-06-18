@@ -12,11 +12,10 @@ import { Model } from 'mongoose';
 import { UAParser } from 'ua-parser-js';
 import { v4 as uuidv4 } from 'uuid';
 
+
 import { User, UserRole } from '../user/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { OTP, OTPType } from './schemas/otp.schema';
-import { MailService } from './mail.service';
 import {
   Payment,
   PaymentPurpose,
@@ -37,10 +36,8 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
-    @InjectModel(OTP.name) private readonly otpModel: Model<OTP>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly mailService: MailService,
   ) {}
 
 
@@ -73,24 +70,18 @@ export class AuthService {
     });
   }
 
-  /* ================= REGISTER WITH OTP ================= */
+  /* ================= REGISTER ================= */
 
-  async register(registerDto: RegisterDto, ip?: string, userAgent?: string, otpCode?: string) {
+  async register(registerDto: RegisterDto, ip?: string, userAgent?: string) {
     const { email, password, name, phone, address, avatar } = registerDto;
 
-    // 1️⃣ Verify OTP
-    const otpDoc = await this.otpModel.findOne({ email, code: otpCode, type: OTPType.REGISTRATION });
-    if (!otpDoc) {
-      throw new UnauthorizedException('Invalid or expired registration OTP');
-    }
-
-    // 2️⃣ Check if user already exists
+    // 1️⃣ Check if user already exists
     const existingUser = await this.userModel.findOne({ email });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
 
-    // 3️⃣ Create User
+    // 2️⃣ Create User
     const user = new this.userModel({
       name,
       email,
@@ -104,13 +95,10 @@ export class AuthService {
 
     await user.save();
 
-    // 4️⃣ Record Session
+    // 3️⃣ Record Session
     if (ip && userAgent) {
       await this.recordSession(user._id.toString(), ip, userAgent);
     }
-
-    // 5️⃣ Delete OTP
-    await this.otpModel.deleteOne({ _id: otpDoc._id });
 
     const payload: TokenPayload = {
       _id: user._id.toString(),
@@ -248,48 +236,9 @@ export class AuthService {
     return this.userModel.findById(userId);
   }
 
-  /* ================= OTP LOGIC ================= */
+  /* ================= PASSWORD CHANGE ================= */
 
-  async sendRegistrationOTP(email: string) {
-    const existingUser = await this.userModel.findOne({ email });
-    if (existingUser) {
-        throw new ConflictException('User with this email already exists');
-    }
-
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    await this.otpModel.findOneAndUpdate(
-        { email, type: OTPType.REGISTRATION },
-        { code, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-        { upsert: true, new: true }
-    );
-
-    await this.mailService.sendOTP(email, code, OTPType.REGISTRATION);
-    return { success: true, message: 'OTP sent to your email' };
-  }
-
-  async sendPasswordOTP(email: string) {
-    const user = await this.userModel.findOne({ email });
-    if (!user) {
-        throw new NotFoundException('User not found');
-    }
-
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    await this.otpModel.findOneAndUpdate(
-        { email, type: OTPType.PASSWORD_CHANGE },
-        { code, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
-        { upsert: true, new: true }
-    );
-
-    await this.mailService.sendOTP(email, code, OTPType.PASSWORD_CHANGE);
-    return { success: true, message: 'OTP sent to your email' };
-  }
-
-  async changePasswordWithOTP(email: string, code: string, newPassword: string) {
-    const otpDoc = await this.otpModel.findOne({ email, code, type: OTPType.PASSWORD_CHANGE });
-    if (!otpDoc) {
-        throw new UnauthorizedException('Invalid or expired OTP');
-    }
-
+  async changePassword(email: string, newPassword: string) {
     const user = await this.userModel.findOne({ email });
     if (!user) {
         throw new NotFoundException('User not found');
@@ -297,7 +246,6 @@ export class AuthService {
 
     user.password = newPassword;
     await user.save();
-    await this.otpModel.deleteOne({ _id: otpDoc._id });
 
     return { success: true, message: 'Password updated successfully' };
   }

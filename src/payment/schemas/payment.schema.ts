@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export enum PaymentMethod {
   BKASH_GATEWAY = 'BKASH_GATEWAY',
+  SSL_GATEWAY = 'SSL_GATEWAY',
   BKASH_MANUAL = 'BKASH_MANUAL',
   NAGAD_MANUAL = 'NAGAD_MANUAL',
   ROCKET_MANUAL = 'ROCKET_MANUAL',

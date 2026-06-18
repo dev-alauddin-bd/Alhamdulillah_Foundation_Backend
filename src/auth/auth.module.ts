@@ -6,8 +6,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { MailService } from './mail.service';
-import { OTP, OTPSchema } from './schemas/otp.schema';
 
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { User, UserSchema } from '../user/schemas/user.schema';
@@ -31,7 +29,6 @@ import { Payment, PaymentSchema } from 'src/payment/schemas/payment.schema';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Payment.name, schema: PaymentSchema },
-      { name: OTP.name, schema: OTPSchema },
     ]),
  
 
@@ -40,7 +37,6 @@ import { Payment, PaymentSchema } from 'src/payment/schemas/payment.schema';
   controllers: [AuthController],
   providers: [
     AuthService,
-    MailService,
     JwtStrategy, // Strategy must be registered for guards to work
     JwtAuthGuard, // Optional for DI injection
   ],

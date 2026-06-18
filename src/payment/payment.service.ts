@@ -7,7 +7,7 @@ import {
 } from './schemas/payment.schema';
 
 import { UserService } from 'src/user/user.service';
-import { BkashGateway } from './getways/bkash/bkash.gateway';
+import { SslGateway } from './getways/ssl/ssl.gateway';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -17,15 +17,15 @@ import { FundService } from 'src/fund/fund.service';
 @Injectable()
 export class PaymentService {
   constructor(
-    private readonly bkashGateway: BkashGateway,
+    private readonly sslGateway: SslGateway,
     private readonly userService: UserService,
     private readonly fundService: FundService,
     @InjectModel(Payment.name)
-      private readonly paymentModel: Model<Payment>,
-     @InjectModel(User.name)
+    private readonly paymentModel: Model<Payment>,
+    @InjectModel(User.name)
     private readonly userModel: Model<User>,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async processPayment(
     userId: string,
@@ -60,9 +60,12 @@ export class PaymentService {
     };
 
     switch (method) {
-      case PaymentMethod.BKASH_GATEWAY:
-        const result = await this.bkashGateway.createPayment(payload);
-        return { gatewayUrl: result.bkashURL, paymentId: payment._id };
+      case PaymentMethod.SSL_GATEWAY:
+        const sslResult = await this.sslGateway.createPayment({
+          ...payload,
+          transactionId: payment.transactionId,
+        });
+        return { gatewayUrl: sslResult.gatewayUrl, paymentId: payment._id };
 
       case PaymentMethod.BKASH_MANUAL:
       case PaymentMethod.NAGAD_MANUAL:
@@ -103,7 +106,7 @@ export class PaymentService {
 
     return { success: true, message: 'Payment details submitted. Waiting for approval.' };
   }
-    
+
   async getUserPayments(userId: string, query: any) {
     const { status, page = 1, limit = 10 } = query || {};
     const filter: any = { userId };
@@ -134,7 +137,7 @@ export class PaymentService {
       },
     };
   }
-    
+
   async getAllPayments(query: any) {
     const { status, search, page = 1, limit = 10 } = query || {};
     const filter: any = {};
@@ -180,7 +183,7 @@ export class PaymentService {
   async approvePayment(paymentId: string) {
     const payment = await this.paymentModel.findById(paymentId);
     if (!payment) throw new BadRequestException('Payment not found');
-    
+
     if (payment.paymentStatus === PaymentStatus.PAID) {
       throw new BadRequestException('Payment already approved');
     }
@@ -232,23 +235,30 @@ export class PaymentService {
   // ===============================
   // BKASH GATEWAY CALLBACKS
   // ===============================
-  async handleBkashCallback(paymentID: string, status: string) {
-    if (status !== 'success') {
-      // Find the payment and mark as failed
-      return { message: 'Payment failed or cancelled' };
+
+
+  // ===============================
+  // SSLCOMMERZ GATEWAY CALLBACKS
+  // ===============================
+  async handleSslCallback(body: any) {
+    const { status, tran_id, val_id } = body;
+    if (status !== 'VALID') {
+      return { success: false, message: `Payment status: ${status}` };
     }
 
-    const result = await this.bkashGateway.executePayment(paymentID);
-    if (result.statusCode === '0000') {
-      // Success! Update our record
-      const payment = await this.paymentModel.findOne({ transactionId: result.merchantInvoiceNumber });
-      if (payment) {
-        await this.completePaymentProcess(payment._id.toString());
-      }
-      return { success: true, message: 'Payment completed successfully' };
+    const payment = await this.paymentModel.findOne({ transactionId: tran_id });
+    if (!payment) {
+      return { success: false, message: 'Payment record not found' };
     }
 
-    return { success: false, message: result.statusMessage };
+    // Verify payment using gateway validate API
+    const validationResult = await this.sslGateway.verifyPayment({ val_id });
+    if (validationResult?.status === 'VALID') {
+      await this.completePaymentProcess(payment._id.toString());
+      return { success: true, paymentId: payment._id.toString(), message: 'Payment verified successfully' };
+    }
+
+    return { success: false, message: 'Payment verification failed at gateway' };
   }
 
   async getPaymentById(id: string, userId: string, role: string) {

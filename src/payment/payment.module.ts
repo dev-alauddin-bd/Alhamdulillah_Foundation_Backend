@@ -14,7 +14,8 @@ import {
 import { PaymentService } from './payment.service';
 
 import { UserService } from 'src/user/user.service';
-import { BkashGateway } from './getways/bkash/bkash.gateway';
+
+import { SslGateway } from './getways/ssl/ssl.gateway';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { BkashGateway } from './getways/bkash/bkash.gateway';
     FundModule,
   ],
   controllers: [PaymentController],
-  providers: [PaymentService, BkashGateway, UserService],
+  providers: [PaymentService, SslGateway, UserService],
   exports: [PaymentService],
 })
 export class PaymentModule {}

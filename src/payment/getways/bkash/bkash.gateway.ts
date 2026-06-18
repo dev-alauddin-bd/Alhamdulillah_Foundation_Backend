@@ -12,9 +12,9 @@ export class BkashGateway {
 
   constructor(private readonly configService: ConfigService) {
     const isLive = this.configService.get<string>('BKASH_IS_LIVE') === 'true';
-    this.baseUrl = isLive 
-      ? 'https://checkout.pay.bka.sh/v1.2.0-beta/checkout' // Live URL
-      : 'https://checkout.sandbox.bka.sh/v1.2.0-beta/checkout'; // Sandbox URL
+    this.baseUrl = isLive
+      ? 'https://tokenized.pay.bka.sh/v1.2.0-beta' // Live URL
+      : 'https://tokenized.sandbox.bka.sh/v1.2.0-beta'; // Sandbox URL
       
     this.appKey = this.configService.get<string>('BKASH_APP_KEY') || '';
     this.appSecret = this.configService.get<string>('BKASH_APP_SECRET') || '';
@@ -30,15 +30,15 @@ export class BkashGateway {
 
     try {
       const { data } = await axios.post(
-        `${this.baseUrl}/token/grant`,
+        `${this.baseUrl}/tokenized/checkout/token/grant`,
         {
           app_key: this.appKey,
           app_secret: this.appSecret,
-          username: this.username,
-          password: this.password,
         },
         {
           headers: {
+            'x-app-key': this.appKey,
+            'Content-Type': 'application/json',
             username: this.username,
             password: this.password,
           },
@@ -64,7 +64,7 @@ export class BkashGateway {
     
     try {
       const { data } = await axios.post(
-        `${this.baseUrl}/create`,
+        `${this.baseUrl}/tokenized/checkout/create`,
         {
           amount: payload.amount,
           currency: 'BDT',
@@ -91,7 +91,7 @@ export class BkashGateway {
 
     try {
       const { data } = await axios.post(
-        `${this.baseUrl}/execute`,
+        `${this.baseUrl}/tokenized/checkout/execute`,
         { paymentID },
         {
           headers: {

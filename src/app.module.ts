@@ -16,6 +16,7 @@ import { AppService } from './app.service';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { NoticeModule } from './notice/notice.module';
 import { ManagementModule } from './management/management.module';
+import { BannerModule } from './banner/banner.module';
 
 
 
@@ -56,6 +57,7 @@ import { ManagementModule } from './management/management.module';
     StatsModule,
     FundModule,
     ManagementModule,
+    BannerModule,
 
   ],
   controllers: [AppController],

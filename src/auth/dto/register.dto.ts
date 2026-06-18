@@ -25,8 +25,4 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   address?: string;
-
-  @IsNotEmpty()
-  @IsString()
-  otpCode: string;
 }

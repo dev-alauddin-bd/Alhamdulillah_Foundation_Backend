@@ -75,24 +75,37 @@ export class PaymentController {
     return this.paymentService.approvePayment(id);
   }
 
+
+
   // ===============================
-  // BKASH CALLBACK (SUCCESS/FAIL/CANCEL)
+  // SSLCOMMERZ CALLBACKS (SUCCESS/FAIL/CANCEL/IPN)
   // ===============================
-  @Get('bkash/callback')
-  async bkashCallback(
-    @Query('paymentID') paymentID: string,
-    @Query('status') status: string,
-    @Res() res: Response
-  ) {
-    const result = await this.paymentService.handleBkashCallback(paymentID, status);
-    
+  @Post('ssl/success')
+  async sslSuccess(@Body() body: any, @Res() res: Response) {
+    const result = await this.paymentService.handleSslCallback(body);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    
     if (result.success) {
-      return res.redirect(`${frontendUrl}/payment/success?paymentID=${paymentID}`);
+      return res.redirect(`${frontendUrl}/payment/success?paymentID=${result.paymentId}`);
     } else {
       return res.redirect(`${frontendUrl}/payment/fail?message=${encodeURIComponent(result.message || 'Payment failed')}`);
     }
+  }
+
+  @Post('ssl/fail')
+  async sslFail(@Body() body: any, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    return res.redirect(`${frontendUrl}/payment/fail?message=${encodeURIComponent(body.status || 'Payment failed')}`);
+  }
+
+  @Post('ssl/cancel')
+  async sslCancel(@Body() body: any, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    return res.redirect(`${frontendUrl}/payment/fail?message=Payment cancelled`);
+  }
+
+  @Post('ssl/ipn')
+  async sslIpn(@Body() body: any) {
+    return this.paymentService.handleSslCallback(body);
   }
 
   // ===============================

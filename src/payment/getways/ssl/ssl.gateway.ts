@@ -77,7 +77,8 @@ export class SslGateway implements PaymentGateway {
     };
   }
 
-  async verifyPayment(data: any) {
-    // IPN / validation later
+  async verifyPayment(data: { val_id: string }) {
+    this.ensureInitialized();
+    return await this.sslcz.validate(data);
   }
 }

@@ -49,7 +49,7 @@ export class AuthController {
     const userAgent = req.headers['user-agent'];
 
     const { user, accessToken, refreshToken } =
-      await this.authService.register(registerDto, ip as string, userAgent, registerDto.otpCode);
+      await this.authService.register(registerDto, ip as string, userAgent);
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -142,33 +142,16 @@ async me(
   };
 }
 
-  /* ================= OTP ENDPOINTS ================= */
-
-  @Get('send-registration-otp')
-  async sendRegistrationOTP(@Query('email') email: string) {
-    return this.authService.sendRegistrationOTP(email);
-  }
-
-  @Post('send-registration-otp')
-  async sendRegistrationOTPPost(@Body('email') email: string) {
-    return this.authService.sendRegistrationOTP(email);
-  }
-
-  @Post('send-password-otp')
-  @UseGuards(JwtAuthGuard)
-  async sendPasswordOTP(@ReqDecorator() req: any) {
-    return this.authService.sendPasswordOTP(req.user.email);
-  }
+  /* ================= PASSWORD CHANGE ================= */
 
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   async changePassword(
     @ReqDecorator() req: any,
-    @Body() body: { otpCode: string; newPassword: string },
+    @Body() body: { newPassword: string },
   ) {
-    return this.authService.changePasswordWithOTP(
+    return this.authService.changePassword(
       req.user.email,
-      body.otpCode,
       body.newPassword,
     );
   }
